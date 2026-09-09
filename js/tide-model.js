@@ -142,6 +142,13 @@ const metricPower = document.getElementById("metric-power");
 const metricTurbine = document.getElementById("metric-turbine");
 const compareOutput = document.getElementById("compare-output");
 const comparePeak = document.getElementById("compare-peak");
+const insightReadout = document.getElementById("insight-readout");
+
+// Average Nova Scotia household electricity use, used only to translate a
+// raw kW figure into something a general reader can picture. Source: NS
+// Power's typical residential usage figure of ~1,000 kWh/month, i.e. about
+// 1.37 kW of continuous average draw per home.
+const AVG_NS_HOME_KW = 1.37;
 
 const heightPath = document.getElementById("height-path");
 const velocityPath = document.getElementById("velocity-path");
@@ -153,9 +160,17 @@ const rmseReadout = document.getElementById("rmse-readout");
 
 const CYCLE_HOURS = 24.8; // one full lunar day (two high tides, two low tides)
 const CHART_WIDTH = 600;
-const CHART_HEIGHT = 220;
+const CHART_HEIGHT = 260; // taller than before -- see VELOCITY_SCALE note below for why
 const CHART_TOP_PADDING = 20;
-const CHART_BOTTOM = 165; // y-position of the zero axis line in the SVG, matches the taller viewBox
+const CHART_BOTTOM = 175; // y-position of the height curve's zero axis in the SVG
+
+// The velocity curve swings both above AND below its own baseline (ebb vs.
+// flow), unlike height which only goes up from zero. With the old 220px-tall
+// viewBox and a fixed +/-67px swing centred on CHART_BOTTOM, the negative
+// (ebb) half of the curve landed at y=232 -- past the bottom edge of the
+// SVG, so it was silently clipped off. Taller viewBox + a smaller swing
+// keeps both the crest and the trough fully on-screen.
+const VELOCITY_SCALE = 65;
 
 /**
  * Draws the full-cycle height and velocity curves as SVG path strings.
@@ -179,7 +194,7 @@ function drawCurves(peakVelocityMs) {
 
     const v = estimateVelocity(t, peakVelocityMs);
     // Map velocity (roughly -peak to +peak) onto the same chart, centred
-    const vY = CHART_BOTTOM - (v / peakVelocityMs) * 67; // scaled to match the taller chart area
+    const vY = CHART_BOTTOM - (v / peakVelocityMs) * VELOCITY_SCALE;
     velocityPoints.push(`${x.toFixed(1)},${vY.toFixed(1)}`);
   }
 
@@ -212,6 +227,15 @@ function updateReadouts() {
   compareOutput.textContent = turbineOutput.toFixed(0) + " kW";
 
   comparePeak.textContent = peakVelocityMs.toFixed(1) + " m/s";
+
+  // Translate the raw kW figure into something more concrete: how many
+  // average Nova Scotia homes this one turbine would be powering right now,
+  // plus how close it is to its 2 MW rated capacity at this instant.
+  const homesEquivalent = Math.round(turbineOutput / AVG_NS_HOME_KW);
+  const capacityFactor = (turbineOutput / TURBINE_RATED_POWER_KW) * 100;
+  insightReadout.textContent =
+    `Right now, this one turbine would power roughly ${homesEquivalent.toLocaleString()} average NS homes ` +
+    `(${capacityFactor.toFixed(0)}% of its rated 2 MW capacity).`;
 
   // Move the playhead marker to the current position on the height curve
   const x = (hours / CYCLE_HOURS) * CHART_WIDTH;
