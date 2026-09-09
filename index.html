@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tidal Resource Assessment — Bay of Fundy | Tendekai Mugomba</title>
+<meta name="description" content="Harmonic tide prediction and tidal current power density model for the Minas Passage, Bay of Fundy — home to the world's highest tides.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Leaflet for the location map — loaded from a CDN, no API key required (OpenStreetMap tiles) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+/* ============================================================
+   DESIGN TOKENS — copied from tmugomba.github.io/css/style.css
+   ============================================================ */
+:root {
+  --navy: #0a1420;
+  --navy-deep: #060c14;
+  --graphite: #131c28;
+  --graphite-raised: #1a2532;
+  --hairline: rgba(226, 232, 240, 0.1);
+  --hairline-strong: rgba(226, 232, 240, 0.2);
+
+  --ink-white: #eef2f6;
+  --ink-light: #aab5c2;
+  --ink-dim: #6d7885;
+
+  --amber: #f5a623;
+  --amber-deep: #b9770f;
+  --cyan: #35c2c1;
+  --cyan-deep: #157a79;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+body {
+  margin: 0;
+  background: var(--navy);
+  color: var(--ink-light);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { font-family: var(--font-display); color: var(--ink-white); font-weight: 600; line-height: 1.15; margin: 0 0 0.5em; letter-spacing: -0.01em; }
+p { margin: 0 0 1.2em; max-width: 68ch; }
+a { color: var(--amber); text-decoration: none; }
+a:hover { color: var(--cyan); }
+.mono { font-family: var(--font-mono); }
+
+/* WIDER shell — this tool now uses more of the viewport than a typical
+   prose page, since the calculator and map benefit from breathing room */
+.wrap { max-width: 1440px; margin: 0 auto; padding: 0 4vw; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--amber); margin-bottom: 1em; }
+
+.back-link { display: inline-block; font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink-dim); margin: 1.5rem 0 0; }
+.back-link:hover { color: var(--cyan); }
+
+/* ---------- Hero with animated tide wave ---------- */
+.hero { position: relative; padding: 4rem 0 0; overflow: hidden; }
+.hero-text { position: relative; z-index: 2; padding-bottom: 2rem; max-width: 900px; }
+.hero h1 { font-size: clamp(2.4rem, 4.5vw, 4rem); max-width: 22ch; letter-spacing: -0.02em; }
+.hero-sub { font-size: 1.15rem; max-width: 65ch; }
+
+/* The wave strip: three overlapping sine-wave paths that scroll horizontally
+   on an infinite loop, animated purely with CSS transform + SMIL-free approach
+   so it works reliably as a static file with no JS dependency for this effect. */
+.tide-wave-strip { position: relative; width: 100%; height: 90px; margin-top: 1rem; }
+.tide-wave-strip svg { position: absolute; top: 0; left: 0; width: 200%; height: 100%; }
+.wave-back   { animation: wave-scroll 22s linear infinite; opacity: 0.35; }
+.wave-mid    { animation: wave-scroll 15s linear infinite reverse; opacity: 0.55; }
+.wave-front  { animation: wave-scroll 10s linear infinite; opacity: 0.85; }
+@keyframes wave-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ---------- Tabs ---------- */
+.tab-nav {
+  display: flex;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--hairline-strong);
+  margin-bottom: 3rem;
+  overflow-x: auto;
+}
+.tab-btn {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  background: transparent;
+  border: none;
+  padding: 1rem 1.4rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.tab-btn:hover { color: var(--ink-light); }
+.tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fade-in 0.3s ease; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Section shell ---------- */
+.section-head { max-width: 72ch; margin-bottom: 2.5rem; }
+.section h2 { font-size: clamp(1.7rem, 2.6vw, 2.3rem); }
+
+/* ---------- Background / history + map ---------- */
+.history-grid { display: grid; grid-template-columns: 1fr; gap: 2.5rem; margin-bottom: 3rem; }
+@media (min-width: 1000px) { .history-grid { grid-template-columns: 1.1fr 0.9fr; } }
+
+#location-map {
+  width: 100%;
+  height: 420px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline-strong);
+  filter: grayscale(0.3) invert(0.92) contrast(0.9) hue-rotate(180deg);
+  /* filter gives Leaflet's default light tiles a dark, brand-consistent look */
+}
+.map-caption { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-dim); margin-top: 0.6rem; }
+
+.history-figure { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 1.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.history-figure .stat { font-family: var(--font-display); color: var(--amber); font-size: 2.4rem; font-weight: 700; line-height: 1; }
+.history-figure .stat-label { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-dim); margin-top: 0.4rem; }
+
+/* ---------- Info tooltip ("i" icon) ---------- */
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-dim);
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-style: normal;
+  cursor: help;
+  position: relative;
+  margin-left: 0.35em;
+  vertical-align: middle;
+}
+.info-icon:hover, .info-icon:focus-visible { border-color: var(--cyan); color: var(--cyan); }
+.info-icon .tooltip-bubble {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: 145%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  background: var(--graphite-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 6px;
+  padding: 0.7rem 0.9rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--ink-light);
+  line-height: 1.5;
+  z-index: 10;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.info-icon:hover .tooltip-bubble,
+.info-icon:focus-visible .tooltip-bubble { visibility: visible; opacity: 1; }
+
+/* ---------- Insight / stat cards ---------- */
+.insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.1rem; }
+.insight-card { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 1.5rem 1.6rem; }
+.insight-card .value { font-family: var(--font-display); color: var(--cyan); font-size: 2.1rem; font-weight: 700; }
+.insight-card .label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-light); margin-top: 0.4rem; }
+.insight-note { font-size: 0.92rem; color: var(--ink-dim); margin-top: 1.75rem; }
+
+/* ---------- Calculator layout — now wider, split 55/45 ---------- */
+.calc-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+@media (min-width: 1100px) { .calc-grid { grid-template-columns: 0.9fr 1.1fr; } }
+
+.panel { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 2rem 2.2rem; }
+.panel h3 { font-size: 1.2rem; margin-bottom: 1.2rem; }
+
+.metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.75rem; }
+.metric { background: var(--graphite-raised); border-radius: 6px; padding: 1.1rem 1.2rem; text-align: left; }
+.metric .metric-label { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; }
+.metric .metric-value { font-family: var(--font-display); color: var(--ink-white); font-size: 1.7rem; font-weight: 600; margin-top: 0.3rem; }
+.metric .metric-value.accent { color: var(--amber); }
+
+.control-row { margin-bottom: 1.4rem; }
+.control-row label { display: flex; align-items: center; font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-light); margin-bottom: 0.6rem; }
+input[type="range"] { width: 100%; accent-color: var(--amber); background: transparent; }
+
+.chart-wrap { margin-top: 1.2rem; }
+.chart-legend { display: flex; gap: 1.4rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-dim); margin-top: 0.7rem; flex-wrap: wrap; }
+.legend-swatch { display: inline-block; width: 10px; height: 2px; margin-right: 4px; vertical-align: middle; }
+
+table.compare { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+table.compare th { text-align: left; font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.6rem 0.4rem; border-bottom: 1px solid var(--hairline-strong); }
+table.compare td { padding: 0.8rem 0.4rem; border-bottom: 1px solid var(--hairline); color: var(--ink-light); }
+table.compare td.accent { color: var(--cyan); font-family: var(--font-mono); }
+
+.method-note { border-left: 2px solid var(--amber-deep); padding: 1rem 1.3rem; background: var(--graphite-raised); border-radius: 0 6px 6px 0; font-size: 0.92rem; margin-top: 1.75rem; }
+.method-note strong { color: var(--ink-white); }
+.method-note.warning { border-left-color: var(--cyan-deep); }
+
+/* ---------- Resources tab ---------- */
+.resource-section { margin-bottom: 2.75rem; }
+.resource-section h3 { font-size: 1.15rem; margin-bottom: 1rem; }
+.resource-list { display: flex; flex-direction: column; gap: 0.9rem; }
+.resource-item {
+  background: var(--graphite);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  padding: 1.1rem 1.4rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem 1rem;
+  align-items: start;
+}
+.resource-item .resource-title { color: var(--ink-white); font-weight: 600; font-family: var(--font-display); font-size: 0.98rem; }
+.resource-item .resource-desc { font-size: 0.88rem; color: var(--ink-light); margin: 0.3rem 0 0; max-width: 60ch; }
+.resource-item .resource-meta { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-dim); text-align: right; white-space: nowrap; }
+.resource-item a.resource-link { font-family: var(--font-mono); font-size: 0.78rem; }
+
+.methodology-steps { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+.methodology-steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 2.6rem;
+  margin-bottom: 1.4rem;
+  font-size: 0.94rem;
+  color: var(--ink-light);
+}
+.methodology-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--graphite-raised);
+  border: 1px solid var(--hairline-strong);
+  color: var(--amber);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.methodology-steps strong { color: var(--ink-white); }
+
+footer { padding: 3rem 0 4rem; }
+footer p { font-size: 0.88rem; color: var(--ink-dim); }
+footer a { color: var(--ink-light); }
+footer a:hover { color: var(--amber); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <a class="back-link" href="https://tmugomba.github.io#projects">&larr; back to portfolio</a>
+
+  <!-- ============================================================
+       HERO — with animated tide wave (ebb/flow motion)
+       ============================================================ -->
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Tidal &middot; Minas Passage, Bay of Fundy</p>
+      <h1>Tidal resource assessment</h1>
+      <p class="hero-sub">A harmonic tide-prediction and current-power model for the Bay of Fundy — the site of the world's largest tides, and Canada's leading tidal energy test facility.</p>
+    </div>
+
+    <!-- Three overlapping wave layers scrolling at different speeds/opacities
+         to suggest tidal ebb and flow. Purely decorative, one orchestrated
+         effect rather than motion scattered across the page. -->
+    <div class="tide-wave-strip" aria-hidden="true">
+      <svg class="wave-back" viewBox="0 0 1200 90" preserveAspectRatio="none">
+        <path d="M0,45 C150,10 300,80 450,45 C600,10 750,80 900,45 C1050,10 1200,80 1350,45 L1350,90 L0,90 Z" fill="#157a79"/>
+        <path d="M1200,45 C1350,10 1500,80 1650,45 C1800,10 1950,80 2100,45 C2250,10 2400,80 2550,45 L2550,90 L1200,90 Z" fill="#157a79"/>
+      </svg>
+      <svg class="wave-mid" viewBox="0 0 1200 90" preserveAspectRatio="none">
+        <path d="M0,55 C150,25 300,85 450,55 C600,25 750,85 900,55 C1050,25 1200,85 1350,55 L1350,90 L0,90 Z" fill="#35c2c1"/>
+        <path d="M1200,55 C1350,25 1500,85 1650,55 C1800,25 1950,85 2100,55 C2250,25 2400,85 2550,55 L2550,90 L1200,90 Z" fill="#35c2c1"/>
+      </svg>
+      <svg class="wave-front" viewBox="0 0 1200 90" preserveAspectRatio="none">
+        <path d="M0,65 C150,45 300,88 450,65 C600,45 750,88 900,65 C1050,45 1200,88 1350,65 L1350,90 L0,90 Z" fill="#f5a623"/>
+        <path d="M1200,65 C1350,45 1500,88 1650,65 C1800,45 1950,88 2100,65 C2250,45 2400,88 2550,65 L2550,90 L1200,90 Z" fill="#f5a623"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       TAB NAVIGATION
+       ============================================================ -->
+  <div class="tab-nav" role="tablist">
+    <button class="tab-btn active" data-tab="overview" role="tab" aria-selected="true">Overview</button>
+    <button class="tab-btn" data-tab="status" role="tab" aria-selected="false">Current Status</button>
+    <button class="tab-btn" data-tab="calculator" role="tab" aria-selected="false">Calculator</button>
+    <button class="tab-btn" data-tab="resources" role="tab" aria-selected="false">Resources</button>
+  </div>
+
+  <!-- ============================================================
+       TAB 1: OVERVIEW — background/history + location map
+       ============================================================ -->
+  <div class="tab-panel active" id="tab-overview" role="tabpanel">
+    <div class="section-head">
+      <p class="eyebrow">Background</p>
+      <h2>Why the Bay of Fundy has the world's biggest tides</h2>
+    </div>
+
+    <div class="history-grid">
+      <div>
+        <p>The Bay of Fundy, between Nova Scotia and New Brunswick, pushes roughly 160 billion tonnes of water in and out with every tide cycle — more than the combined flow of all the freshwater rivers and streams on Earth. At the head of the bay, in the Minas Basin, the vertical tidal range exceeds 16 metres between low and high water: the largest tidal range recorded anywhere in the world.</p>
+
+        <p>The scale isn't a coincidence of geography — it's
+          <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">Resonance happens when a system's natural oscillation period closely matches an external driving force, so each push arrives in sync with the last and the swings build on each other — like timing pushes on a playground swing to its own rhythm.</span></span>
+          resonance. The Bay of Fundy's length and depth give it a natural oscillation period close to the roughly
+          <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">The Moon orbits and the Earth rotates such that most coastlines see two high tides and two low tides roughly every 24 hours 50 minutes — this full cycle is called a "lunar day." Half of it, about 12.4 hours, is the spacing between consecutive high tides.</span></span>
+          12.4-hour cycle of the semi-diurnal lunar tide. Because the bay's own sloshing period nearly matches the driving tidal force, incoming and reflected waves reinforce each other on each cycle instead of cancelling out, amplifying the tide far beyond what a simple funnel shape alone would produce.</p>
+
+        <p>That amplification is concentrated as the tide is squeezed through Minas Passage — the narrow, 5&nbsp;km wide, 11&nbsp;km long channel connecting the outer bay to Minas Basin. Currents there peak at roughly 5–6&nbsp;m/s on
+          <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">Spring tides (nothing to do with the season) happen twice a month when the Sun, Moon, and Earth align, and their gravitational pulls combine — producing the highest highs and lowest lows of the month. Neap tides, at the in-between points, are milder.</span></span>
+          spring tides, among the fastest tidal streams anywhere, which is what makes it a viable site for in-stream turbines rather than a barrage dam.</p>
+      </div>
+
+      <div class="history-figure">
+        <div><div class="stat">16+ m</div><div class="stat-label">Tidal range, Minas Basin</div></div>
+        <div><div class="stat">160B t</div><div class="stat-label">Water moved per tide cycle</div></div>
+        <div><div class="stat">~6 m/s</div><div class="stat-label">Peak spring-tide current, Minas Passage</div></div>
+        <div><div class="stat">2,500 MW</div><div class="stat-label">Estimated extractable potential, NS tidal sites</div></div>
+      </div>
+    </div>
+
+    <h3>Where this is happening</h3>
+    <div id="location-map"></div>
+    <p class="map-caption">FORCE test site, Minas Passage — 45.333&deg;N, 64.417&deg;W. Zoom out to see the Bay of Fundy's funnel shape between Nova Scotia and New Brunswick.</p>
+  </div>
+
+  <!-- ============================================================
+       TAB 2: CURRENT STATUS
+       ============================================================ -->
+  <div class="tab-panel" id="tab-status" role="tabpanel">
+    <div class="section-head">
+      <p class="eyebrow">Current status</p>
+      <h2>What's actually being built at FORCE</h2>
+      <p>The Fundy Ocean Research Centre for Energy (FORCE), at Black Rock near Parrsboro, is Canada's lead tidal stream test site. After an earlier developer's project stalled in permitting and was withdrawn, a new regulatory framework has moved the site from research-only into its first authorized commercial-track array.</p>
+    </div>
+
+    <div class="insight-grid">
+      <div class="insight-card"><div class="value">7.5 MW</div><div class="label">First array authorized (Eauclaire / Orbital, Nov 2025)</div></div>
+      <div class="insight-card"><div class="value">12.5 MW</div><div class="label">Additional capacity contracted, Dec 2025 procurement</div></div>
+      <div class="insight-card"><div class="value">6</div><div class="label">Orbital O2-X turbines planned across both awards</div></div>
+      <div class="insight-card"><div class="value">2.5 MW</div><div class="label">Rated capacity per O2-X floating turbine</div></div>
+      <div class="insight-card"><div class="value">15 yr</div><div class="label">Power purchase agreement term with NS Power</div></div>
+      <div class="insight-card"><div class="value">~180 GWh</div><div class="label">Projected output per turbine over contract life</div></div>
+    </div>
+
+    <p class="insight-note">The current authorization uses Fisheries and Oceans Canada's new
+      <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">Instead of approving a full commercial array upfront, DFO now allows a single device plus environmental monitoring to launch first, with additional turbines added only as monitoring data confirms low ecological impact.</span></span>
+      staged regulatory approach: a project can start with a single device plus environmental monitoring, then expand as data comes in — designed specifically to avoid the years-long permitting stall that led the previous developer, Sustainable Marine Canada, to withdraw from Minas Passage. Sources: FORCE, Orbital Marine Power, Halifax Examiner (Nov–Dec 2025).</p>
+  </div>
+
+  <!-- ============================================================
+       TAB 3: CALCULATOR
+       ============================================================ -->
+  <div class="tab-panel" id="tab-calculator" role="tabpanel">
+    <div class="section-head">
+      <p class="eyebrow">Model</p>
+      <h2>Harmonic tide &amp; power density calculator</h2>
+      <p>Scrub through a tidal cycle to see the predicted water level, an estimated current velocity, and the resulting power density at Minas Passage.</p>
+    </div>
+
+    <div class="calc-grid">
+      <div class="panel">
+        <h3>Live readout</h3>
+
+        <div class="metric-row" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="metric"><div class="metric-label">Water level</div><div class="metric-value" id="metric-level">–</div></div>
+          <div class="metric">
+            <div class="metric-label">Current velocity
+              <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">Approximated, not directly measured — see the methodology note below for how this is derived.</span></span>
+            </div>
+            <div class="metric-value accent" id="metric-velocity">–</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Power density
+              <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">Kinetic power available per square metre of turbine swept area: P/A = 0.5 &times; seawater density &times; velocity&sup3;. The same cubic relationship used for wind power.</span></span>
+            </div>
+            <div class="metric-value accent" id="metric-power">–</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Turbine output
+              <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">Estimated real output from an Orbital O2-X-class turbine (600 m&sup2; swept area, 2 MW rated), including the pitch-control cap real turbines apply at and above rated current speed.</span></span>
+            </div>
+            <div class="metric-value accent" id="metric-turbine">–</div>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <label for="time-slider">Time into tidal cycle (<span id="time-label">0.0</span> h of 24.8 h)</label>
+          <input type="range" id="time-slider" min="0" max="1488" value="0" step="1">
+        </div>
+
+        <div class="control-row">
+          <label for="peak-velocity-input">
+            Reference peak spring-tide velocity (m/s)
+            <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">The model scales its velocity curve so the fastest point in the cycle matches this value. Published Minas Passage peaks range roughly 5–6 m/s.</span></span>
+          </label>
+          <input type="range" id="peak-velocity-input" min="3" max="6" value="5" step="0.1">
+          <span class="mono" id="peak-velocity-label" style="font-size:0.85rem; color:var(--ink-light);">5.0 m/s</span>
+        </div>
+
+        <div class="method-note">
+          <strong>Methodology note:</strong> the height curve sums three dominant harmonic constituents —
+          <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">M2 (principal lunar semi-diurnal), S2 (principal solar semi-diurnal), and N2 (larger lunar elliptic semi-diurnal) — the three biggest contributors to most tides worldwide.</span></span>
+          M2, S2, N2 — fitted by least-squares regression against 30 days of real predicted water levels for Burntcoat Head (CHS station 00270), pulled live from the Canadian Hydrographic Service IWLS API. Current velocity is still approximated by scaling this real-fitted height curve against the reference peak velocity above, since current speed isn't derivable from height alone.
+        </div>
+
+        <div class="method-note">
+          <strong>Validation result:</strong> an earlier attempt to fit M2/S2/N2 from a single day of data failed — those three periods differ by under half an hour, so 24 hourly points can't statistically tell them apart, producing physically impossible 40+ metre amplitudes. Refitting against 30 days (covering roughly two full M2/S2 "beat cycles" of ~14.8 days each) resolved this cleanly: fitted amplitudes of 5.47 m / 1.15 m / 0.79 m are close to textbook Bay of Fundy values. The chart to the right plots the model directly against the real data it was fitted from — toggle it off to compare the curve shape alone.
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Predicted curve — full lunar day</h3>
+        <div class="chart-wrap">
+          <svg id="tide-svg" viewBox="0 0 600 220" style="width:100%; height:auto;" role="img" aria-label="Predicted tidal height and current velocity over one lunar day, with optional real data overlay">
+            <line x1="0" y1="165" x2="600" y2="165" stroke="var(--hairline-strong)" stroke-width="1"/>
+            <path id="height-path" fill="none" stroke="#f5a623" stroke-width="2.5"/>
+            <path id="velocity-path" fill="none" stroke="#35c2c1" stroke-width="1.8" stroke-dasharray="4 3"/>
+            <path id="real-data-path" fill="none" stroke="#d4537e" stroke-width="1.5" stroke-dasharray="2 2"/>
+            <g id="real-data-dots"></g>
+            <circle id="playhead" r="5" fill="#eef2f6"/>
+          </svg>
+          <div class="chart-legend">
+            <span><span class="legend-swatch" style="background:#f5a623;"></span>Predicted water level (model)</span>
+            <span><span class="legend-swatch" style="background:#35c2c1;"></span>Estimated current velocity</span>
+            <span><span class="legend-swatch" style="background:#d4537e;"></span>Real data (Burntcoat Head)</span>
+          </div>
+
+          <div class="control-row" style="margin-top:1.2rem;">
+            <label style="cursor:pointer;">
+              <input type="checkbox" id="overlay-toggle" checked style="accent-color:#d4537e; margin-right:0.5rem;">
+              Show real data overlay
+              <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">Plots the actual 26 hours of real CHS predicted water levels used to fit this model's constants, so you can see how closely the harmonic curve tracks reality rather than just trusting a claimed error number.</span></span>
+            </label>
+            <p id="rmse-readout" class="mono" style="font-size:0.8rem; color:var(--ink-dim); margin-top:0.5rem;"></p>
+          </div>
+        </div>
+
+        <h3 style="margin-top:2.2rem;">Comparison to FORCE-authorized turbines</h3>
+        <table class="compare">
+          <tr><th>Device</th><th>Rated velocity</th><th>Rated power</th></tr>
+          <tr>
+            <td>Orbital O2-X (Eauclaire, authorized 2025)</td>
+            <td class="accent">~2.5 m/s</td>
+            <td class="accent">2.5 MW</td>
+          </tr>
+          <tr>
+            <td>This tool's live estimate, at current slider position</td>
+            <td class="accent" id="compare-peak">–</td>
+            <td class="accent" id="compare-output">–</td>
+          </tr>
+        </table>
+
+        <div class="method-note">
+          <strong>Turbine output methodology:</strong> calibrated against Orbital Marine's O2 (same twin-rotor architecture as the O2-X deployed at FORCE): 600 m&sup2; combined swept area, rated 2 MW at a 2.5 m/s current speed — both figures from Orbital's own published specifications. Below rated speed, output follows the cubic power relationship (P = Cp &times; 0.5 &times; seawater density &times; area &times; velocity&sup3;), with Cp derived to match that real rating exactly. At and above rated speed, output is capped rather than left to grow unbounded — Orbital's technical documentation confirms the real O2 series pitches its blades specifically to hold output flat once rated power is reached. One approximation worth flagging: the O2-X's exact swept area isn't separately published, so this reuses the O2's verified 600 m&sup2; figure rather than a confirmed O2-X-specific number.
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         REAL VELOCITY REFERENCE — standalone panel, not overlaid
+         against the height model (see methodology note for why)
+         ============================================================ -->
+    <div class="panel" style="margin-top:2rem;">
+      <h3>Real reference: FORCE seabed ADCP field data
+        <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">ADCP = Acoustic Doppler Current Profiler, an instrument that measures water velocity using sound wave reflections off particles in the water column.</span></span>
+      </h3>
+      <p style="font-size:0.92rem;">24 hours of genuine current speed measurements from a seabed ADCP deployed at the actual FORCE Crown Lease Area (45.363&deg;N, 64.427&deg;W, ~25.5m depth), April 1&ndash;2, 2018. Source: CIOOS Atlantic / FORCE, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
+
+      <svg id="real-velocity-svg" viewBox="0 0 600 160" style="width:100%; height:auto;" role="img" aria-label="Real measured current speed over 24 hours at the FORCE tidal test site">
+        <line x1="0" y1="130" x2="600" y2="130" stroke="var(--hairline-strong)" stroke-width="1"/>
+        <path id="real-velocity-path" fill="none" stroke="#d4537e" stroke-width="2"/>
+      </svg>
+      <div class="chart-legend">
+        <span><span class="legend-swatch" style="background:#d4537e;"></span>Real measured current speed (m/s)</span>
+      </div>
+
+      <div class="metric-row" style="margin-top:1.2rem; grid-template-columns: repeat(3, 1fr);">
+        <div class="metric"><div class="metric-label">Measured max</div><div class="metric-value" id="real-vel-max">–</div></div>
+        <div class="metric"><div class="metric-label">Measured mean</div><div class="metric-value" id="real-vel-mean">–</div></div>
+        <div class="metric"><div class="metric-label">Measured min</div><div class="metric-value" id="real-vel-min">–</div></div>
+      </div>
+
+      <div class="method-note">
+        <strong>Why this isn't overlaid on the model chart above:</strong> the harmonic height model's clock is anchored to an arbitrary data-pull window (Sept 2026), not real calendar time, so it can't yet predict for an arbitrary historical date like April 2018. Plotting them on the same axis would show two unrelated moments in the tidal cycle side by side — visually neat, but not an actual validation. This panel instead grounds the calculator's velocity range in genuine field measurements: the observed 0.13–4.88 m/s range at this specific depth and location is consistent with, though somewhat lower than, the ~5–6 m/s peaks reported for the fastest parts of Minas Passage overall (this ADCP sits at 25.5m depth, not necessarily the fastest point or the surface). A proper next step would be re-deriving the height model against real epoch time so both models can be queried for the same real dates and compared point-by-point.
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       TAB 4: RESOURCES — methodology, data sources, limitations
+       ============================================================ -->
+  <div class="tab-panel" id="tab-resources" role="tabpanel">
+    <div class="section-head">
+      <p class="eyebrow">Resources</p>
+      <h2>Methodology, data sources &amp; known limitations</h2>
+      <p>Everything on this page traces back to a real, citable source or a documented modelling choice. This tab lays out exactly how, so the numbers above can be checked rather than taken on trust.</p>
+    </div>
+
+    <div class="resource-section">
+      <h3>Methodology, step by step</h3>
+      <ol class="methodology-steps">
+        <li><strong>Harmonic height prediction.</strong> Water level is modelled as the sum of three tidal constituents — M2 (principal lunar semi-diurnal, 12.42h), S2 (principal solar semi-diurnal, 12.00h), and N2 (larger lunar elliptic semi-diurnal, 12.66h) — the standard technique used in real tide-table prediction.</li>
+        <li><strong>Constituent fitting.</strong> Amplitude and phase for each constituent were fitted by least-squares regression against 30 days of real predicted water levels for Burntcoat Head. A first attempt using only 1 day of data failed — those three periods are too close together (under 30 minutes apart) to separate from a single day — which is itself documented as a finding, not hidden.</li>
+        <li><strong>Velocity approximation.</strong> Current velocity is not measured directly from height. It's approximated as the rate of change of the fitted height curve, rescaled so its peak matches a user-adjustable reference velocity. This is a simplification — see Known Limitations below.</li>
+        <li><strong>Power density.</strong> Kinetic power per square metre of swept area uses the standard fluid power flux equation, P/A = 0.5 &times; seawater density &times; velocity&sup3; — the same cubic relationship used for wind power.</li>
+        <li><strong>Turbine output.</strong> Converts power density into an actual kW figure for a specific real turbine (Orbital O2/O2-X class: 600 m&sup2; swept area, 2 MW rated at 2.5 m/s), including the realistic pitch-control cap that holds output flat above rated speed rather than letting it grow unbounded.</li>
+        <li><strong>Validation.</strong> The fitted height model is checked directly against the real 30-day dataset it was derived from, with a live RMSE readout in the Calculator tab. Real measured current velocity (from a FORCE seabed ADCP) is shown as a standalone reference rather than falsely overlaid, since the height model isn't yet anchored to real calendar time — flagged explicitly rather than glossed over.</li>
+      </ol>
+    </div>
+
+    <div class="resource-section">
+      <h3>Data sources</h3>
+      <div class="resource-list">
+        <div class="resource-item">
+          <div>
+            <div class="resource-title">Canadian Hydrographic Service — IWLS API</div>
+            <p class="resource-desc">30 days of real predicted water levels, Burntcoat Head station (00270), used to fit the M2/S2/N2 harmonic constants and to validate the height model.</p>
+          </div>
+          <div>
+            <a class="resource-link" href="https://api-iwls.dfo-mpo.gc.ca" target="_blank" rel="noopener">api-iwls.dfo-mpo.gc.ca</a>
+            <div class="resource-meta">Government of Canada, public</div>
+          </div>
+        </div>
+        <div class="resource-item">
+          <div>
+            <div class="resource-title">CIOOS Atlantic / FORCE — Seabed ADCP Currents</div>
+            <p class="resource-desc">One week of real measured current speed at the FORCE Crown Lease Area, Minas Passage (~25.5m depth), used as the real-world velocity reference panel.</p>
+          </div>
+          <div>
+            <a class="resource-link" href="https://catalogue.cioosatlantic.ca/dataset/ca-cioos_db15458d-df2c-4efb-b5a0-791e7561a0cb" target="_blank" rel="noopener">catalogue.cioosatlantic.ca</a>
+            <div class="resource-meta">CC BY 4.0</div>
+          </div>
+        </div>
+        <div class="resource-item">
+          <div>
+            <div class="resource-title">Orbital Marine Power — O2 technical specifications</div>
+            <p class="resource-desc">Rotor diameter, swept area, and rated power/velocity used to calibrate the turbine output model's power coefficient.</p>
+          </div>
+          <div>
+            <a class="resource-link" href="https://www.orbitalmarine.com" target="_blank" rel="noopener">orbitalmarine.com</a>
+            <div class="resource-meta">Manufacturer published specs</div>
+          </div>
+        </div>
+        <div class="resource-item">
+          <div>
+            <div class="resource-title">FORCE (Fundy Ocean Research Centre for Energy)</div>
+            <p class="resource-desc">Site background, test-site role, and project status for the Current Status tab.</p>
+          </div>
+          <div>
+            <a class="resource-link" href="https://fundyforce.ca" target="_blank" rel="noopener">fundyforce.ca</a>
+            <div class="resource-meta">Nov–Dec 2025</div>
+          </div>
+        </div>
+        <div class="resource-item">
+          <div>
+            <div class="resource-title">OpenStreetMap contributors, via Leaflet.js</div>
+            <p class="resource-desc">Base map tiles for the Overview tab's location map.</p>
+          </div>
+          <div>
+            <a class="resource-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">openstreetmap.org</a>
+            <div class="resource-meta">ODbL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="resource-section">
+      <h3>Known limitations</h3>
+      <div class="resource-list">
+        <div class="resource-item" style="grid-template-columns: 1fr;">
+          <div>
+            <div class="resource-title">Velocity is derived, not measured</div>
+            <p class="resource-desc">Current velocity comes from the rate of change of the fitted height curve, rescaled to a reference peak — not a direct harmonic fit to real current measurements. True current harmonic analysis would need a long ADCP time series (weeks to months), which wasn't available for this iteration.</p>
+          </div>
+        </div>
+        <div class="resource-item" style="grid-template-columns: 1fr;">
+          <div>
+            <div class="resource-title">Height model isn't anchored to real calendar time</div>
+            <p class="resource-desc">The M2/S2/N2 fit uses "hours since an arbitrary data-pull window" rather than absolute epoch time, so it can't yet predict for a specific real date. This is why the real ADCP data (April 2018) is shown as a standalone reference rather than overlaid against the model.</p>
+          </div>
+        </div>
+        <div class="resource-item" style="grid-template-columns: 1fr;">
+          <div>
+            <div class="resource-title">Turbine swept area is a reasonable substitute, not a confirmed O2-X figure</div>
+            <p class="resource-desc">The O2-X's exact rotor dimensions aren't separately published. The turbine output model reuses the predecessor O2's verified 600 m&sup2; swept area, which shares the same twin-rotor architecture.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="resource-section">
+      <h3>Scripts used to pull this project's real data</h3>
+      <p style="font-size:0.9rem;">Available in the project repository alongside this page: <code class="mono">fetch_iwls_data.py</code> (water level pull), <code class="mono">fetch_adcp_data.py</code> (current velocity pull), and <code class="mono">fit_check.py</code> (harmonic constituent fitting and validation).</p>
+    </div>
+  </div>
+
+  <footer>
+    <p>Built by <a href="https://github.com/tmugomba" target="_blank" rel="noopener">Tendekai Mugomba</a> — electrical engineering student focused on renewable energy analytics in Nova Scotia. <a href="https://www.linkedin.com/in/tendekai-mugomba" target="_blank" rel="noopener">LinkedIn</a> &middot; <a href="https://github.com/tmugomba" target="_blank" rel="noopener">GitHub</a></p>
+  </footer>
+</div>
+
+<script src="js/tabs.js"></script>
+<script src="js/location-map.js"></script>
+<script src="js/validation-data.js"></script>
+<script src="js/tide-model.js"></script>
+</body>
+</html>
