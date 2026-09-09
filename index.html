@@ -65,7 +65,13 @@ h1, h2, h3, h4 { font-family: var(--font-display); color: var(--ink-white); font
 /* Widened from 68ch — on a big display the old measure left large empty
    margins on either side of every paragraph. This lets text breathe out
    across more of the available width while still staying readable. */
-p { margin: 0 0 1.2em; max-width: 90ch; }
+/* No blanket max-width here anymore -- it was capping every plain paragraph
+   at ~90 characters regardless of how wide its actual container was,
+   which is exactly what left empty space on the right of intro text and
+   notes throughout the page. Paragraphs that specifically want a narrower
+   reading column (hero-sub, the Overview background text inside its own
+   grid column) set their own width explicitly instead. */
+p { margin: 0 0 1.2em; }
 a { color: var(--amber); text-decoration: none; }
 a:hover { color: var(--cyan); }
 .mono { font-family: var(--font-mono); }
@@ -156,7 +162,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---------- Section shell ---------- */
-.section-head { max-width: 95ch; margin-bottom: 2.5rem; }
+.section-head { margin-bottom: 2.5rem; }
 .section h2 { font-size: clamp(1.9rem, 2.8vw, 2.5rem); }
 
 /* ---------- Background / history + map ---------- */
@@ -240,12 +246,19 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .info-icon:focus-visible .tooltip-bubble { visibility: visible; opacity: 1; }
 
 /* ---------- Insight / stat cards ---------- */
-.insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.1rem; }
-.insight-card { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 1.5rem 1.6rem; transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+/* Explicit column counts instead of auto-fit/minmax(220px) -- that was
+   packing all 6 stat cards into one cramped row (~220-250px each) on wide
+   screens, so even short values like "12.5 MW" wrapped onto two lines and
+   labels wrapped into narrow 4-line columns instead of using the row's
+   actual width. Fixed column counts give each card real room to breathe. */
+.insight-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; }
+@media (max-width: 980px) { .insight-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .insight-grid { grid-template-columns: 1fr; } }
+.insight-card { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 1.6rem 1.8rem; transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
 .insight-card:hover { transform: translateY(-3px); border-color: var(--cyan-deep); box-shadow: 0 12px 28px rgba(0,0,0,0.35); }
-.insight-card .value { font-family: var(--font-display); color: var(--cyan); font-size: 2.2rem; font-weight: 700; }
-.insight-card .label { font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink-light); margin-top: 0.4rem; }
-.insight-note { font-size: 0.95rem; color: var(--ink-dim); margin-top: 1.75rem; }
+.insight-card .value { font-family: var(--font-display); color: var(--cyan); font-size: 2.2rem; font-weight: 700; white-space: nowrap; }
+.insight-card .label { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-light); margin-top: 0.5rem; max-width: none; }
+.insight-note { font-size: 0.95rem; color: var(--ink-dim); margin-top: 1.75rem; max-width: none; }
 
 /* ---------- Calculator layout — now wider, split 55/45 ---------- */
 .calc-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
