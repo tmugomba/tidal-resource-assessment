@@ -92,10 +92,15 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   background-image: radial-gradient(ellipse 900px 480px at 12% 15%, rgba(53, 194, 193, 0.16), transparent 70%);
   background-repeat: no-repeat;
 }
-.hero-text { position: relative; z-index: 2; padding-bottom: 2rem; max-width: 1100px; }
+.hero-text { position: relative; z-index: 2; padding-bottom: 2rem; max-width: 1300px; }
 .hero h1 {
-  font-size: clamp(2.8rem, 5.5vw, 5rem);
-  max-width: 24ch;
+  /* Previously capped at 24ch, which forced a wrap after "resource" no
+     matter how much horizontal room was actually available -- "Tidal
+     resource assessment" is 26 characters, so it could never fit under
+     that cap. Removed the ch cap; nowrap below keeps it on one line
+     wherever there's room, and still wraps safely on narrow phones
+     where it doesn't apply. */
+  font-size: clamp(2.2rem, 4.4vw, 4.3rem);
   letter-spacing: -0.02em;
   /* Gradient title so it stands out immediately as the page's focal point,
      rather than reading as just another dark-navy heading. */
@@ -104,6 +109,9 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+}
+@media (min-width: 640px) {
+  .hero h1 { white-space: nowrap; }
 }
 .hero-sub { font-size: 1.25rem; max-width: 75ch; }
 
@@ -284,7 +292,11 @@ table.compare td.accent { color: var(--cyan); font-family: var(--font-mono); }
   align-items: start;
 }
 .resource-item .resource-title { color: var(--ink-white); font-weight: 600; font-family: var(--font-display); font-size: 0.98rem; }
-.resource-item .resource-desc { font-size: 0.92rem; color: var(--ink-light); margin: 0.3rem 0 0; max-width: 80ch; }
+/* No max-width here (unlike general body paragraphs) -- these live inside
+   a bordered card that's already sized to the grid column, so the text
+   should fill that box edge-to-edge instead of stopping at an arbitrary
+   character count and leaving the rest of the card empty. */
+.resource-item .resource-desc { font-size: 0.92rem; color: var(--ink-light); margin: 0.3rem 0 0; max-width: none; }
 .resource-item .resource-meta { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-dim); text-align: right; white-space: nowrap; }
 .resource-item a.resource-link { font-family: var(--font-mono); font-size: 0.78rem; }
 
