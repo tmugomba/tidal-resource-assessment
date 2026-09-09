@@ -6,6 +6,10 @@
 <title>Tidal Resource Assessment — Bay of Fundy | Tendekai Mugomba</title>
 <meta name="description" content="Harmonic tide prediction and tidal current power density model for the Minas Passage, Bay of Fundy — home to the world's highest tides.">
 
+<!-- Wave favicon: a simple three-layer sine wave echoing the hero animation,
+     encoded directly as an SVG data URI so no separate image file is needed. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a1420'/%3E%3Cpath d='M0 40 C8 32 16 48 24 40 C32 32 40 48 48 40 C56 32 60 36 64 34 L64 64 L0 64 Z' fill='%23157a79'/%3E%3Cpath d='M0 46 C8 38 16 54 24 46 C32 38 40 54 48 46 C56 38 60 42 64 40 L64 64 L0 64 Z' fill='%2335c2c1'/%3E%3Cpath d='M0 52 C8 46 16 58 24 52 C32 46 40 58 48 52 C56 46 60 49 64 48 L64 64 L0 64 Z' fill='%23f5a623'/%3E%3C/svg%3E">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
@@ -40,7 +44,9 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+/* Bumped from the browser default (16px) so every rem-based size on the
+   page — body text, headings, metrics — scales up together in one place. */
+html { scroll-behavior: smooth; font-size: 118%; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
@@ -56,26 +62,50 @@ body {
 }
 
 h1, h2, h3, h4 { font-family: var(--font-display); color: var(--ink-white); font-weight: 600; line-height: 1.15; margin: 0 0 0.5em; letter-spacing: -0.01em; }
-p { margin: 0 0 1.2em; max-width: 68ch; }
+/* Widened from 68ch — on a big display the old measure left large empty
+   margins on either side of every paragraph. This lets text breathe out
+   across more of the available width while still staying readable. */
+p { margin: 0 0 1.2em; max-width: 90ch; }
 a { color: var(--amber); text-decoration: none; }
 a:hover { color: var(--cyan); }
 .mono { font-family: var(--font-mono); }
 
 /* WIDER shell — this tool now uses more of the viewport than a typical
    prose page, since the calculator and map benefit from breathing room */
-.wrap { max-width: 1440px; margin: 0 auto; padding: 0 4vw; }
+.wrap { max-width: 1600px; margin: 0 auto; padding: 0 4vw; }
 a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 
-.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--amber); margin-bottom: 1em; }
-
-.back-link { display: inline-block; font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink-dim); margin: 1.5rem 0 0; }
-.back-link:hover { color: var(--cyan); }
+.eyebrow { font-family: var(--font-mono); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--amber); margin-bottom: 1em; }
 
 /* ---------- Hero with animated tide wave ---------- */
-.hero { position: relative; padding: 4rem 0 0; overflow: hidden; }
-.hero-text { position: relative; z-index: 2; padding-bottom: 2rem; max-width: 900px; }
-.hero h1 { font-size: clamp(2.4rem, 4.5vw, 4rem); max-width: 22ch; letter-spacing: -0.02em; }
-.hero-sub { font-size: 1.15rem; max-width: 65ch; }
+.hero {
+  position: relative;
+  padding: 4rem 0 0;
+  overflow: hidden;
+  /* Soft glow painted straight onto the hero's own background instead of a
+     separate absolutely-positioned box. The previous version used a boxed
+     div with a hard right edge (left:-10%, width:60%) that got sliced by
+     this element's overflow:hidden, showing up as a visible vertical seam
+     on narrower screens. A background-image gradient has no box edge to
+     clip — it just fades to fully transparent well inside the hero, so
+     there's nothing left to cut off. */
+  background-image: radial-gradient(ellipse 900px 480px at 12% 15%, rgba(53, 194, 193, 0.16), transparent 70%);
+  background-repeat: no-repeat;
+}
+.hero-text { position: relative; z-index: 2; padding-bottom: 2rem; max-width: 1100px; }
+.hero h1 {
+  font-size: clamp(2.8rem, 5.5vw, 5rem);
+  max-width: 24ch;
+  letter-spacing: -0.02em;
+  /* Gradient title so it stands out immediately as the page's focal point,
+     rather than reading as just another dark-navy heading. */
+  background: linear-gradient(100deg, var(--ink-white) 15%, var(--amber) 55%, var(--cyan) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.hero-sub { font-size: 1.25rem; max-width: 75ch; }
 
 /* The wave strip: three overlapping sine-wave paths that scroll horizontally
    on an infinite loop, animated purely with CSS transform + SMIL-free approach
@@ -111,15 +141,15 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   transition: color 0.2s ease, border-color 0.2s ease;
 }
 .tab-btn:hover { color: var(--ink-light); }
-.tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
+.tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); text-shadow: 0 0 16px rgba(245, 166, 35, 0.45); }
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; animation: fade-in 0.3s ease; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---------- Section shell ---------- */
-.section-head { max-width: 72ch; margin-bottom: 2.5rem; }
-.section h2 { font-size: clamp(1.7rem, 2.6vw, 2.3rem); }
+.section-head { max-width: 95ch; margin-bottom: 2.5rem; }
+.section h2 { font-size: clamp(1.9rem, 2.8vw, 2.5rem); }
 
 /* ---------- Background / history + map ---------- */
 .history-grid { display: grid; grid-template-columns: 1fr; gap: 2.5rem; margin-bottom: 3rem; }
@@ -135,9 +165,29 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 }
 .map-caption { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-dim); margin-top: 0.6rem; }
 
-.history-figure { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 1.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-.history-figure .stat { font-family: var(--font-display); color: var(--amber); font-size: 2.4rem; font-weight: 700; line-height: 1; }
-.history-figure .stat-label { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-dim); margin-top: 0.4rem; }
+.history-figure {
+  background: var(--graphite);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  padding: 1.6rem 1.8rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.figure-title { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-dim); margin-bottom: 1.2rem; }
+.stat-block { padding: 0 1.1rem 1.3rem 0; margin-bottom: 1.3rem; }
+/* Dividers between quadrants replace what used to be plain empty gutters,
+   so the box reads as a deliberately structured grid instead of four
+   numbers floating in a lot of blank space. */
+.stat-block:nth-child(odd) { border-right: 1px solid var(--hairline); }
+.stat-block:nth-child(-n+2) { border-bottom: 1px solid var(--hairline); }
+/* Bottom-row cells don't need the same trailing margin/padding as the top
+   row — trimming it stops the box ending in a wide empty band under the
+   last two numbers. */
+.stat-block:nth-child(n+3) { margin-bottom: 0; padding-bottom: 0; }
+.history-figure .stat { font-family: var(--font-display); color: var(--amber); font-size: 2.6rem; font-weight: 700; line-height: 1; }
+.history-figure .stat-label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-dim); margin-top: 0.4rem; }
+.history-figure .stat-context { font-size: 0.86rem; color: var(--ink-light); margin: 0.6rem 0 0; max-width: none; }
 
 /* ---------- Info tooltip ("i" icon) ---------- */
 .info-icon {
@@ -183,17 +233,18 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 
 /* ---------- Insight / stat cards ---------- */
 .insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.1rem; }
-.insight-card { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 1.5rem 1.6rem; }
-.insight-card .value { font-family: var(--font-display); color: var(--cyan); font-size: 2.1rem; font-weight: 700; }
-.insight-card .label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-light); margin-top: 0.4rem; }
-.insight-note { font-size: 0.92rem; color: var(--ink-dim); margin-top: 1.75rem; }
+.insight-card { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 1.5rem 1.6rem; transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+.insight-card:hover { transform: translateY(-3px); border-color: var(--cyan-deep); box-shadow: 0 12px 28px rgba(0,0,0,0.35); }
+.insight-card .value { font-family: var(--font-display); color: var(--cyan); font-size: 2.2rem; font-weight: 700; }
+.insight-card .label { font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink-light); margin-top: 0.4rem; }
+.insight-note { font-size: 0.95rem; color: var(--ink-dim); margin-top: 1.75rem; }
 
 /* ---------- Calculator layout — now wider, split 55/45 ---------- */
 .calc-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
 @media (min-width: 1100px) { .calc-grid { grid-template-columns: 0.9fr 1.1fr; } }
 
-.panel { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 2rem 2.2rem; }
-.panel h3 { font-size: 1.2rem; margin-bottom: 1.2rem; }
+.panel { background: var(--graphite); border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 2rem 2.2rem; box-shadow: 0 16px 40px rgba(0,0,0,0.28); }
+.panel h3 { font-size: 1.3rem; margin-bottom: 1.2rem; }
 
 .metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.75rem; }
 .metric { background: var(--graphite-raised); border-radius: 6px; padding: 1.1rem 1.2rem; text-align: left; }
@@ -233,7 +284,7 @@ table.compare td.accent { color: var(--cyan); font-family: var(--font-mono); }
   align-items: start;
 }
 .resource-item .resource-title { color: var(--ink-white); font-weight: 600; font-family: var(--font-display); font-size: 0.98rem; }
-.resource-item .resource-desc { font-size: 0.88rem; color: var(--ink-light); margin: 0.3rem 0 0; max-width: 60ch; }
+.resource-item .resource-desc { font-size: 0.92rem; color: var(--ink-light); margin: 0.3rem 0 0; max-width: 80ch; }
 .resource-item .resource-meta { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-dim); text-align: right; white-space: nowrap; }
 .resource-item a.resource-link { font-family: var(--font-mono); font-size: 0.78rem; }
 
@@ -274,7 +325,6 @@ footer a:hover { color: var(--amber); }
 <body>
 
 <div class="wrap">
-  <a class="back-link" href="https://tmugomba.github.io#projects">&larr; back to portfolio</a>
 
   <!-- ============================================================
        HERO — with animated tide wave (ebb/flow motion)
@@ -340,10 +390,27 @@ footer a:hover { color: var(--amber); }
       </div>
 
       <div class="history-figure">
-        <div><div class="stat">16+ m</div><div class="stat-label">Tidal range, Minas Basin</div></div>
-        <div><div class="stat">160B t</div><div class="stat-label">Water moved per tide cycle</div></div>
-        <div><div class="stat">~6 m/s</div><div class="stat-label">Peak spring-tide current, Minas Passage</div></div>
-        <div><div class="stat">2,500 MW</div><div class="stat-label">Estimated extractable potential, NS tidal sites</div></div>
+        <p class="figure-title">Bay of Fundy, by the numbers</p>
+        <div class="stat-block">
+          <div class="stat">16+ m</div>
+          <div class="stat-label">Tidal range, Minas Basin</div>
+          <p class="stat-context">Largest recorded anywhere in the world.</p>
+        </div>
+        <div class="stat-block">
+          <div class="stat">160B t</div>
+          <div class="stat-label">Water moved per tide cycle</div>
+          <p class="stat-context">More than every river on Earth combined.</p>
+        </div>
+        <div class="stat-block">
+          <div class="stat">~6 m/s</div>
+          <div class="stat-label">Peak spring-tide current, Minas Passage</div>
+          <p class="stat-context">Among the fastest tidal streams anywhere.</p>
+        </div>
+        <div class="stat-block">
+          <div class="stat">2,500 MW</div>
+          <div class="stat-label">Estimated extractable potential, NS tidal sites</div>
+          <p class="stat-context">A meaningful slice of the province's future grid.</p>
+        </div>
       </div>
     </div>
 
@@ -383,7 +450,7 @@ footer a:hover { color: var(--amber); }
     <div class="section-head">
       <p class="eyebrow">Model</p>
       <h2>Harmonic tide &amp; power density calculator</h2>
-      <p>Scrub through a tidal cycle to see the predicted water level, an estimated current velocity, and the resulting power density at Minas Passage.</p>
+      <p>Drag the time slider to move through a tidal cycle and watch the water level, current speed, and power output update at Minas Passage.</p>
     </div>
 
     <div class="calc-grid">
@@ -412,6 +479,8 @@ footer a:hover { color: var(--amber); }
           </div>
         </div>
 
+        <p class="mono" id="insight-readout" style="font-size:0.88rem; color:var(--ink-light); background:var(--graphite-raised); border-radius:6px; padding:0.8rem 1rem; margin:-0.7rem 0 1.4rem;">–</p>
+
         <div class="control-row">
           <label for="time-slider">Time into tidal cycle (<span id="time-label">0.0</span> h of 24.8 h)</label>
           <input type="range" id="time-slider" min="0" max="1488" value="0" step="1">
@@ -427,21 +496,21 @@ footer a:hover { color: var(--amber); }
         </div>
 
         <div class="method-note">
-          <strong>Methodology note:</strong> the height curve sums three dominant harmonic constituents —
+          <strong>How it works:</strong> the water level is built from three
           <span class="info-icon" tabindex="0">i<span class="tooltip-bubble">M2 (principal lunar semi-diurnal), S2 (principal solar semi-diurnal), and N2 (larger lunar elliptic semi-diurnal) — the three biggest contributors to most tides worldwide.</span></span>
-          M2, S2, N2 — fitted by least-squares regression against 30 days of real predicted water levels for Burntcoat Head (CHS station 00270), pulled live from the Canadian Hydrographic Service IWLS API. Current velocity is still approximated by scaling this real-fitted height curve against the reference peak velocity above, since current speed isn't derivable from height alone.
+          real tidal cycles (M2, S2, N2), tuned to match 30 days of real water-level data from Burntcoat Head. Current speed isn't measured directly — it's estimated from how fast the tide is rising or falling, then scaled to the peak speed you set above.
         </div>
 
         <div class="method-note">
-          <strong>Validation result:</strong> an earlier attempt to fit M2/S2/N2 from a single day of data failed — those three periods differ by under half an hour, so 24 hourly points can't statistically tell them apart, producing physically impossible 40+ metre amplitudes. Refitting against 30 days (covering roughly two full M2/S2 "beat cycles" of ~14.8 days each) resolved this cleanly: fitted amplitudes of 5.47 m / 1.15 m / 0.79 m are close to textbook Bay of Fundy values. The chart to the right plots the model directly against the real data it was fitted from — toggle it off to compare the curve shape alone.
+          <strong>Why 30 days:</strong> one day of data wasn't enough to tell the three cycles apart, since they're only minutes apart in length — that attempt produced impossible 40+ metre tides. Thirty days fixed it, and the fitted amplitudes (5.47 m / 1.15 m / 0.79 m) now line up with published Bay of Fundy values. The chart on the right shows the model laid over that real data — toggle it off to see the curve on its own.
         </div>
       </div>
 
       <div class="panel">
         <h3>Predicted curve — full lunar day</h3>
         <div class="chart-wrap">
-          <svg id="tide-svg" viewBox="0 0 600 220" style="width:100%; height:auto;" role="img" aria-label="Predicted tidal height and current velocity over one lunar day, with optional real data overlay">
-            <line x1="0" y1="165" x2="600" y2="165" stroke="var(--hairline-strong)" stroke-width="1"/>
+          <svg id="tide-svg" viewBox="0 0 600 260" style="width:100%; height:auto;" role="img" aria-label="Predicted tidal height and current velocity over one lunar day, with optional real data overlay">
+            <line x1="0" y1="175" x2="600" y2="175" stroke="var(--hairline-strong)" stroke-width="1"/>
             <path id="height-path" fill="none" stroke="#f5a623" stroke-width="2.5"/>
             <path id="velocity-path" fill="none" stroke="#35c2c1" stroke-width="1.8" stroke-dasharray="4 3"/>
             <path id="real-data-path" fill="none" stroke="#d4537e" stroke-width="1.5" stroke-dasharray="2 2"/>
@@ -480,7 +549,7 @@ footer a:hover { color: var(--amber); }
         </table>
 
         <div class="method-note">
-          <strong>Turbine output methodology:</strong> calibrated against Orbital Marine's O2 (same twin-rotor architecture as the O2-X deployed at FORCE): 600 m&sup2; combined swept area, rated 2 MW at a 2.5 m/s current speed — both figures from Orbital's own published specifications. Below rated speed, output follows the cubic power relationship (P = Cp &times; 0.5 &times; seawater density &times; area &times; velocity&sup3;), with Cp derived to match that real rating exactly. At and above rated speed, output is capped rather than left to grow unbounded — Orbital's technical documentation confirms the real O2 series pitches its blades specifically to hold output flat once rated power is reached. One approximation worth flagging: the O2-X's exact swept area isn't separately published, so this reuses the O2's verified 600 m&sup2; figure rather than a confirmed O2-X-specific number.
+          <strong>Turbine output:</strong> based on Orbital Marine's real O2 turbine — 600 m&sup2; swept area, rated 2 MW at 2.5 m/s. Below that speed, output rises with the cube of current speed; above it, the blades pitch to hold output flat at 2 MW rather than letting it climb forever, just like the real turbine does. One caveat: the O2-X's exact swept area isn't public, so this reuses the O2's confirmed figure as the closest available stand-in.
         </div>
       </div>
     </div>
@@ -510,7 +579,7 @@ footer a:hover { color: var(--amber); }
       </div>
 
       <div class="method-note">
-        <strong>Why this isn't overlaid on the model chart above:</strong> the harmonic height model's clock is anchored to an arbitrary data-pull window (Sept 2026), not real calendar time, so it can't yet predict for an arbitrary historical date like April 2018. Plotting them on the same axis would show two unrelated moments in the tidal cycle side by side — visually neat, but not an actual validation. This panel instead grounds the calculator's velocity range in genuine field measurements: the observed 0.13–4.88 m/s range at this specific depth and location is consistent with, though somewhat lower than, the ~5–6 m/s peaks reported for the fastest parts of Minas Passage overall (this ADCP sits at 25.5m depth, not necessarily the fastest point or the surface). A proper next step would be re-deriving the height model against real epoch time so both models can be queried for the same real dates and compared point-by-point.
+        <strong>Why this isn't overlaid on the model above:</strong> the height model's clock isn't tied to a real calendar date, so it can't be lined up against this April 2018 measurement — showing them on one axis would just be two unrelated moments side by side. What this panel does confirm: the measured 0.13–4.88 m/s range is a bit lower than, but broadly consistent with, the ~5–6 m/s peaks reported elsewhere in Minas Passage (this sensor sits at 25.5 m depth, not necessarily the fastest point). Anchoring the height model to real dates would let both be compared directly — a good next step.
       </div>
     </div>
   </div>
