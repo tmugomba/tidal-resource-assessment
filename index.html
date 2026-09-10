@@ -88,15 +88,6 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   position: relative;
   padding: 4rem 0 0;
   overflow: hidden;
-  /* Soft glow painted straight onto the hero's own background instead of a
-     separate absolutely-positioned box. The previous version used a boxed
-     div with a hard right edge (left:-10%, width:60%) that got sliced by
-     this element's overflow:hidden, showing up as a visible vertical seam
-     on narrower screens. A background-image gradient has no box edge to
-     clip — it just fades to fully transparent well inside the hero, so
-     there's nothing left to cut off. */
-  background-image: radial-gradient(ellipse 900px 480px at 12% 15%, rgba(53, 194, 193, 0.16), transparent 70%);
-  background-repeat: no-repeat;
 }
 .hero-text { position: relative; z-index: 2; padding-bottom: 2rem; max-width: 1300px; }
 .hero h1 {
